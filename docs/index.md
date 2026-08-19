@@ -1,7 +1,4 @@
-﻿```{title} Hiwonder Docs
-```
-
-#  Jetson
+﻿#  Jetson
 
 ## Robotics
 
