@@ -18,6 +18,13 @@ function generateAnchor(text: string) {
     .toLowerCase()
 }
 
+function generateUniqueAnchor(text: string, anchorCounts: Map<string, number>) {
+  const baseAnchor = generateAnchor(text)
+  const count = anchorCounts.get(baseAnchor) || 0
+  anchorCounts.set(baseAnchor, count + 1)
+  return count === 0 ? baseAnchor : `${baseAnchor}-${count}`
+}
+
 function cleanSidebarText(text: string) {
   return text
     .replace(/\*\*([^*\n]+?)\*\*/g, '$1')
@@ -35,6 +42,70 @@ function buildPageLink(name: string, anchor?: string) {
   const pagePath = `/docs/${name}.html`
   const fullPath = anchor ? `${pagePath}#${anchor}` : pagePath
   return encodeURI(fullPath)
+}
+
+function buildSinglePageHeadingSidebar(pageDir: string, filename: string) {
+  const name = getMarkdownStem(filename)
+  const content = fs.readFileSync(path.join(pageDir, filename), 'utf-8')
+  const lockedPreviewPage = isLockedPreviewPage(content)
+  const lines = content.split('\n')
+  const sidebar: any[] = []
+  const anchorCounts = new Map<string, number>()
+  let currentSection: any | null = null
+  let inCodeBlock = false
+
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+
+    if (trimmedLine.startsWith('```')) {
+      inCodeBlock = !inCodeBlock
+      continue
+    }
+
+    if (inCodeBlock) {
+      continue
+    }
+
+    const h1Match = trimmedLine.match(/^#\s+(.+)$/)
+    if (h1Match) {
+      const rawTitle = h1Match[1].trim()
+      currentSection = {
+        text: cleanSidebarText(rawTitle),
+        link: buildPageLink(name, generateUniqueAnchor(rawTitle, anchorCounts)),
+        collapsed: false,
+        class: lockedPreviewPage ? 'is-preview-locked' : undefined,
+        items: [],
+      }
+      sidebar.push(currentSection)
+      continue
+    }
+
+    const h2Match = trimmedLine.match(/^##\s+(.+)$/)
+    if (h2Match) {
+      const rawTitle = h2Match[1].trim()
+      const item = {
+        text: cleanSidebarText(rawTitle),
+        link: buildPageLink(name, generateUniqueAnchor(rawTitle, anchorCounts)),
+        class: lockedPreviewPage ? 'is-preview-locked' : undefined,
+      }
+
+      if (!currentSection) {
+        currentSection = {
+          text: cleanSidebarText(rawTitle),
+          link: buildPageLink(name, item.link.split('#')[1]),
+          collapsed: false,
+          class: lockedPreviewPage ? 'is-preview-locked' : undefined,
+          items: [],
+        }
+        sidebar.push(currentSection)
+        continue
+      }
+
+      currentSection.items.push(item)
+    }
+  }
+
+  return sidebar
 }
 
 function getMarkdownStem(filename: string) {
@@ -64,9 +135,12 @@ export function getSidebar() {
   const pageDir = path.resolve(__dirname, '../docs')
   if (!fs.existsSync(pageDir)) return []
 
-  const files = fs.readdirSync(pageDir).filter(f => {
-    return f.endsWith('.md') && f.toLowerCase() !== 'index.md'
-  })
+  const markdownFiles = fs.readdirSync(pageDir).filter(f => f.endsWith('.md'))
+  const files = markdownFiles.filter(f => f.toLowerCase() !== 'index.md')
+
+  if (files.length === 0 && markdownFiles.some(f => f.toLowerCase() === 'index.md')) {
+    return buildSinglePageHeadingSidebar(pageDir, 'index.md')
+  }
 
   // Keep the sidebar order consistent with the staging script.
   files.sort((a, b) => {
