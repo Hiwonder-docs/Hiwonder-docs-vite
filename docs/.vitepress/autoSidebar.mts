@@ -39,14 +39,13 @@ function isLockedPreviewPage(content: string) {
 }
 
 function buildPageLink(name: string, anchor?: string) {
-  const pagePath = `/docs/${name}.html`
+  const pagePath = name ? `/docs/${name}.html` : '/'
   const fullPath = anchor ? `${pagePath}#${anchor}` : pagePath
   return encodeURI(fullPath)
 }
 
-function buildSinglePageHeadingSidebar(pageDir: string, filename: string) {
-  const name = getMarkdownStem(filename)
-  const content = fs.readFileSync(path.join(pageDir, filename), 'utf-8')
+function buildSinglePageHeadingSidebar(pagePath: string, linkName: string) {
+  const content = fs.readFileSync(pagePath, 'utf-8')
   const lockedPreviewPage = isLockedPreviewPage(content)
   const lines = content.split('\n')
   const sidebar: any[] = []
@@ -71,7 +70,7 @@ function buildSinglePageHeadingSidebar(pageDir: string, filename: string) {
       const rawTitle = h1Match[1].trim()
       currentSection = {
         text: cleanSidebarText(rawTitle),
-        link: buildPageLink(name, generateUniqueAnchor(rawTitle, anchorCounts)),
+        link: buildPageLink(linkName, generateUniqueAnchor(rawTitle, anchorCounts)),
         collapsed: false,
         class: lockedPreviewPage ? 'is-preview-locked' : undefined,
         items: [],
@@ -85,14 +84,14 @@ function buildSinglePageHeadingSidebar(pageDir: string, filename: string) {
       const rawTitle = h2Match[1].trim()
       const item = {
         text: cleanSidebarText(rawTitle),
-        link: buildPageLink(name, generateUniqueAnchor(rawTitle, anchorCounts)),
+        link: buildPageLink(linkName, generateUniqueAnchor(rawTitle, anchorCounts)),
         class: lockedPreviewPage ? 'is-preview-locked' : undefined,
       }
 
       if (!currentSection) {
         currentSection = {
           text: cleanSidebarText(rawTitle),
-          link: buildPageLink(name, item.link.split('#')[1]),
+          link: buildPageLink(linkName, item.link.split('#')[1]),
           collapsed: false,
           class: lockedPreviewPage ? 'is-preview-locked' : undefined,
           items: [],
@@ -133,13 +132,22 @@ function buildSidebarSortKey(filename: string): [number, number[], string] {
 
 export function getSidebar() {
   const pageDir = path.resolve(__dirname, '../docs')
+  const rootIndexFile = path.resolve(__dirname, '../index.md')
+
+  if (fs.existsSync(rootIndexFile)) {
+    const rootIndexContent = fs.readFileSync(rootIndexFile, 'utf-8')
+    if (!/layout:\s*page-redirect/.test(rootIndexContent) && /^#\s+/m.test(rootIndexContent)) {
+      return buildSinglePageHeadingSidebar(rootIndexFile, '')
+    }
+  }
+
   if (!fs.existsSync(pageDir)) return []
 
   const markdownFiles = fs.readdirSync(pageDir).filter(f => f.endsWith('.md'))
   const files = markdownFiles.filter(f => f.toLowerCase() !== 'index.md')
 
   if (files.length === 0 && markdownFiles.some(f => f.toLowerCase() === 'index.md')) {
-    return buildSinglePageHeadingSidebar(pageDir, 'index.md')
+    return buildSinglePageHeadingSidebar(path.join(pageDir, 'index.md'), 'index')
   }
 
   // Keep the sidebar order consistent with the staging script.

@@ -2,16 +2,26 @@
 
 This repository contains the Hiwonder VitePress documentation portal.
 
-## Local Development
+Production URL:
 
-Install dependencies and start the local documentation server:
+```text
+https://wiki.hiwonder.com/
+```
+
+The site is built with VitePress `base: '/'`, so sidebar links use root anchors such as:
+
+```text
+https://wiki.hiwonder.com/#raspberry-pi
+```
+
+## Local Development
 
 ```bash
 npm ci
 npm run docs:dev
 ```
 
-Build the production site:
+## Build
 
 ```bash
 npm run docs:build
@@ -24,30 +34,4 @@ The staged static files are generated in:
 projects/Hiwonder-docs/en/latest/
 ```
 
-## GitHub Pages
-
-For the `Hiwonder-docs-vite` repository, GitHub Pages should use:
-
-```text
-Source: Deploy from a branch
-Branch: main
-Folder: / (root)
-```
-
-Direct GitHub Pages URL:
-
-```text
-https://hiwonder-docs.github.io/Hiwonder-docs-vite/projects/Hiwonder-docs/en/latest/
-```
-
-Production URL through the Hiwonder domain:
-
-```text
-https://wiki.hiwonder.com/projects/Hiwonder-docs/en/latest/
-```
-
-Root entry URL:
-
-```text
-https://wiki.hiwonder.com/
-```
+Nginx maps `wiki.hiwonder.com` root paths to that staged GitHub Pages directory.

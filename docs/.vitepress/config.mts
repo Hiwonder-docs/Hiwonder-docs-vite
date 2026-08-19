@@ -12,10 +12,11 @@ const fencePattern = /^\s*(```+|~~~+)/
 const lazyImagePlaceholder =
   'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%229%22 viewBox=%220 0 16 9%22%3E%3C/svg%3E'
 const imageDimensionCache = new Map<string, { width: number; height: number } | null>()
-const docsBase = normalizeBase(process.env.DOCS_BASE || '/projects/Hiwonder-docs/en/latest/')
+const docsBase = normalizeBase(process.env.DOCS_BASE || '/')
 
 function normalizeBase(value: string) {
-  return `/${value.replace(/^\/+|\/+$/g, '')}/`
+  const normalized = value.replace(/^\/+|\/+$/g, '')
+  return normalized ? `/${normalized}/` : '/'
 }
 
 function replaceOutsideInlineCode(line: string, replacer: (segment: string) => string) {
@@ -480,13 +481,14 @@ function prepareHardLazyImageTag(tag: string) {
   if (!srcMatch || !srcMatch[2]) {
     return tag
   }
+  const lazySrc = srcMatch[2].replace(/^\/\/assets\//, '/assets/')
 
   let preparedTag = tag
   preparedTag = moveImageAttribute(preparedTag, 'srcset', 'data-lazy-srcset')
   preparedTag = moveImageAttribute(preparedTag, 'sizes', 'data-lazy-sizes')
   preparedTag = preparedTag.replace(
     srcPattern,
-    ` src="${lazyImagePlaceholder}" data-lazy-src=${srcMatch[1]}${srcMatch[2]}${srcMatch[1]}`
+    ` src="${lazyImagePlaceholder}" data-lazy-src=${srcMatch[1]}${lazySrc}${srcMatch[1]}`
   )
 
   if (!hasAttribute(preparedTag, 'decoding')) {
